@@ -1,0 +1,8 @@
+streamlit==1.47.0
+plotly
+pandas
+shapely
+scikit-learn
+feedparser
+requests
+huggingface-hub
