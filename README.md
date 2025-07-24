@@ -1,0 +1,1 @@
+# Georgia-Community-Resilience-Index
