@@ -10,26 +10,26 @@ import pandas as pd
 import plotly.express as px
 from pathlib import Path
 from shapely.geometry import shape
-from huggingface_hub import snapshot_download
-from pathlib import Path
 import feedparser
 import urllib.parse
 import requests
+from sklearn.cluster import KMeans
+import numpy as np
+
 
 # Disable Hugging Face progress bars
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
 
-
+# Set Streamlit page config
 st.set_page_config(layout="wide")
 
 #
 # ─── DATA & PATHS ────────────────────────────────────────────────────────────────
 #
-HERE      = Path(__file__).resolve().parent
-DATA_DIR  = HERE / "data"
-CRI_CSV   = DATA_DIR / "community_resilience_index.csv"
-GEOJSON   = DATA_DIR / "counties.geojson"
-MODEL_DIR = HERE / "models" / "Llama-2-7b-chat-hf"
+HERE = Path(__file__).resolve().parent
+DATA_DIR = HERE / "data"
+CRI_CSV = DATA_DIR / "community_resilience_index.csv"
+GEOJSON = DATA_DIR / "counties.geojson"
 
 
 #
@@ -37,26 +37,26 @@ MODEL_DIR = HERE / "models" / "Llama-2-7b-chat-hf"
 #
 @st.cache_data
 def load_data():
-    df = pd.read_csv(CRI_CSV, dtype=str)
+    dataframe = pd.read_csv(CRI_CSV, dtype=str)
 
     # Build FIPS
-    df["state"]  = df["StateFIPS"].str.zfill(2)
-    df["county"] = df["CountyFIPS"].str.zfill(3)
-    df["fips"]   = df["state"] + df["county"]
+    dataframe["state"]  = dataframe["StateFIPS"].str.zfill(2)
+    dataframe["county"] = dataframe["CountyFIPS"].str.zfill(3)
+    dataframe["fips"]   = dataframe["state"] + dataframe["county"]
 
     # Numeric columns
-    for col in [
+    for column in [
         "Socioeconomic Resilience",
         "Food Resilience",
         "Healthcare Resilience",
         "Community Resilience Index (CRI)"
     ]:
-        df[col] = pd.to_numeric(df[col], errors="coerce").round(4)
+        dataframe[column] = pd.to_numeric(dataframe[column], errors="coerce").round(4)
 
     # Keep only Georgia (state FIPS == '13')
-    df = df[df["state"] == "13"].copy()
+    dataframe = dataframe[dataframe["state"] == "13"].copy()
 
-    # Load geojson & compute centroids
+    # Load geojson & compute centroids for the counties
     gj = json.loads((GEOJSON).read_text())
     cents = {}
     for feat in gj["features"]:
@@ -64,64 +64,60 @@ def load_data():
         cent  = shape(feat["geometry"]).centroid
         cents[geoid] = (cent.y, cent.x)
 
-    return df, gj, cents
+    # Returns the DataFrame, the GeoJSON, and the centroids
+    return dataframe, gj, cents
 
+# Load the data
 cri_df, counties_geojson, centroids = load_data()
 
 
+
 #
-# ─── HELPERS ─────────────────────────────────────────────────────────────────────
+# ─── HELPER FUNCTIONS ─────────────────────────────────────────────────────────────────────
 #
 
-# To calculate the distance between two lat/lon pairs using the Haversine formula
+# To calculate the distance between two lat/lon pairs using the Haversine formula (In handy for radius filtering)
 def haversine(a, b):
-    """Return miles between lat/lon pairs."""
-    lat1, lon1 = a
-    lat2, lon2 = b
-    dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(lon2 - lon1)
-    h = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) \
-        * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
-    return 3958.8 * 2 * math.asin(math.sqrt(h))
+    latitude1, longitude1 = a
+    latitude2, longitude2 = b
+    dist_lat = math.radians(latitude2 - latitude1)
+    dist_lon = math.radians(longitude2 - longitude1)
+    hsine = math.sin(dist_lat/2)**2 + math.cos(math.radians(latitude1)) \
+        * math.cos(math.radians(latitude2)) * math.sin(dist_lon/2)**2
+    return 3958.8 * 2 * math.asin(math.sqrt(hsine))
 
 # Filter the CRI DataFrame based on a range
-def filter_cri(lo, hi):
-    sub = cri_df[(cri_df["Community Resilience Index (CRI)"]>=lo) & (cri_df["Community Resilience Index (CRI)"]<=hi)]
+def cri_range(low, high):
+    sub = cri_df[(cri_df["Community Resilience Index (CRI)"] >= low) & (cri_df["Community Resilience Index (CRI)"] <= high)]
     return sub.sort_values("Community Resilience Index (CRI)", ascending=False)
 
 # Parse the CRI range based on the user input in the chat bot
 def parse_cri_range(text: str):
-    """
-    Simple rule-based parser:
-      - "above X" → (X, 1.0)
-      - "below X" → (0.0, X)
-      - "between X and Y" → (X, Y)
-    """
-    t = text.lower()
+    txt = text.lower()
     # between X and Y
-    m = re.search(r"between\s*([0-9]*\.?[0-9]+)\s*(?:and|to)\s*([0-9]*\.?[0-9]+)", t)
-    if m:
-        return float(m.group(1)), float(m.group(2))
+    mid = re.search(r"between\s*([0-9]*\.?[0-9]+)\s*(?:and|to)\s*([0-9]*\.?[0-9]+)", txt)
+    if mid:
+        return float(mid.group(1)), float(mid.group(2))
     # above X
-    m = re.search(r"above\s*([0-9]*\.?[0-9]+)", t)
-    if m:
-        return float(m.group(1)), 1.0
+    mid = re.search(r"above\s*([0-9]*\.?[0-9]+)", txt)
+    if mid:
+        return float(mid.group(1)), 1.0
     # below X
-    m = re.search(r"below\s*([0-9]*\.?[0-9]+)", t)
-    if m:
-        return 0.0, float(m.group(1))
+    mid = re.search(r"below\s*([0-9]*\.?[0-9]+)", txt)
+    if mid:
+        return 0.0, float(mid.group(1))
     raise ValueError("Sorry, I couldn't parse a CRI range from that question. " \
     "Please format your question in the example given above and try again.")
 
-# Fetch the NOAA weather warnings for Georgia
+# Fetch the NOAA weather warnings for counties in Georgia that have an active warning
 @st.cache_data(ttl=300)
 def fetch_noaa_warnings():
-    url = "https://api.weather.gov/alerts/active?area=GA"
-    r = requests.get(url, timeout=10)
-    r.raise_for_status()
-    data = r.json()
+    noaa_url = "https://api.weather.gov/alerts/active?area=GA"
+    req = requests.get(noaa_url, timeout=10)
+    req.raise_for_status()
+    noaa_data = r.json()
     warning_fips = set()
-    for feat in data["features"]:
+    for feat in noaa_data["features"]:
         geocode = feat["properties"].get("geocode",{}) or {}
         for code in geocode.get("SAME", []):
             # NWS SAME codes are 5-digit state+county FIPS (e.g. "13057")
@@ -129,59 +125,81 @@ def fetch_noaa_warnings():
                 warning_fips.add(code)
     return warning_fips
 
-#
-# ─── SIDEBAR : JUST THE NEWS FEED ───────────────────────────────────────────────────────────────────────
-#
-with st.sidebar:
-    st.sidebar.markdown(
-    "<div style='font-size:24px; font-weight:bold; margin-bottom:8px;'>📰 Live News Feed</div>",
-    unsafe_allow_html=True,
-)
+@st.cache_data
+def compute_res_clusters(df, n_clusters=4):
+    # Through scikit-learn's KMeans, we can cluster the counties based on their resilience scores.
+    # We will use the four resilience scores as features for clustering.
+    X = df[[
+        "Socioeconomic Resilience",
+        "Food Resilience",
+        "Healthcare Resilience"
+    ]].to_numpy()
+    kmeans = KMeans(n_clusters=n_clusters, random_state=0)
+    labels = kmeans.fit_predict(X)
+    df2 = df.copy()
+    df2["cluster"] = labels.astype(str)
+    return df2, kmeans
 
-    # 1) let the user type any keywords (comma-sep)  
-    kw_input = st.sidebar.text_input(
-        "Enter keywords (comma-separated)",
-        value="disaster resilience, food desert"
+# Compute the clusters
+clustered_df, kmeans_model = compute_res_clusters(cri_df)
+
+#
+# ─── SIDEBAR : NEWS FEED + NOAA WARNINGS ───────────────────────────────────────────────────────────────────────
+#
+
+# Sidebar components
+with st.sidebar:
+
+    # Title for the sidebar
+    st.sidebar.markdown(
+    "<div style='font-size:24px; font-weight:bold; margin-bottom:8px;'>📰 Live News & NOAA Warning Feed</div>",
+    unsafe_allow_html=True,
     )
 
-    # 2) how many total articles to pull (1–50)
-    total_to_fetch = st.sidebar.slider("Max articles to fetch", 1, 50, 20)
+    # Let's the user input keywords separated by commas 
+    keyword_input = st.sidebar.text_input(
+        "Enter keywords (comma-separated)",
+        value=""
+    )
 
-    # build & fetch RSS
-    terms = [kw.strip() + " Georgia" for kw in kw_input.split(",") if kw.strip()]
-    q = urllib.parse.quote_plus(" OR ".join(terms))
-    feed_url = f"https://news.google.com/rss/search?q={q}&hl=en-US&gl=US&ceid=US:en"
-    feed = feedparser.parse(feed_url)
+    # Can pull up to 50 articles at a time
+    articles = st.sidebar.slider("Max articles to fetch", 1, 50, 20)
 
-    all_entries = feed.entries[:total_to_fetch]
+    # Builds the RSS search algorithm through google articles 
+    terms = [keyword.strip() + " Georgia" for keyword in keyword_input.split(",") if keyword.strip()]
+    quote = urllib.parse.quote_plus(" OR ".join(terms))
+    feed_urls = f"https://news.google.com/rss/search?q={quote}&hl=en-US&gl=US&ceid=US:en"
+    feed = feedparser.parse(feed_urls)
 
-    # 3) pagination state
-    if "news_page" not in st.session_state or st.session_state.get("news_query") != feed_url:
+
+    sidebar_entries = feed.entries[:articles]
+
+    # Pagination logic
+    if "news_page" not in st.session_state or st.session_state.get("news_query") != feed_urls:
         st.session_state.news_page = 1
-        st.session_state.news_query = feed_url
-
-    page = st.session_state.news_page
+        st.session_state.news_query = feed_urls
+    curr_page = st.session_state.news_page
     per_page = 5
-    total_pages = math.ceil(len(all_entries) / per_page) or 1
+    total_pages = math.ceil(len(sidebar_entries) / per_page) or 1
 
-    # 4) slice & render just this page’s 5 articles
-    start = (page - 1) * per_page
-    end   = start + per_page
-    for entry in all_entries[start:end]:
+    # Just render the sidebar entries for the current page
+    start = (curr_page - 1) * per_page
+    end = start + per_page
+    for entry in sidebar_entries[start:end]:
         date = entry.get("published", "").split("T")[0]
         st.sidebar.markdown(
             f"**[{entry.title}]({entry.link})**  \n*{date}*"
         )
     
-    # 5) page nav buttons
-    prev_col, mid_col, next_col = st.sidebar.columns([1, 2, 1])
-    if prev_col.button("« Prev Page") and page > 1:
+    # Renders the page navigation buttons
+    previous_col, middle_col, next_col = st.sidebar.columns([1, 2, 1])
+    if previous_col.button("« Prev Page") and curr_page > 1:
         st.session_state.news_page -= 1
-    if next_col.button("Next Page »") and page < total_pages:
+    if next_col.button("Next Page »") and curr_page < total_pages:
         st.session_state.news_page += 1
 
-    mid_col.markdown(
-    f"<div style='text-align: center; font-weight:600;'>Page {page} of {total_pages}</div>",
+    middle_col.markdown(
+    f"<div style='text-align: center; font-weight:600;'>Page {curr_page} of {total_pages}</div>",
     unsafe_allow_html=True,
 )
     
@@ -189,14 +207,20 @@ with st.sidebar:
 #
 # ─── MAIN LAYOUT ───────────────────────────────────────────────────────────────────────
 #
+
 # Title centered
 st.markdown("<h1 style='text-align:center'>Georgia Community Resilience Index Dashboard</h1>", unsafe_allow_html=True)
 
-# Two-column layout: Filters/Chat on left, Map+Charts on right
+# Two-column layout
+# - Left: Filters and Chatbot
+# - Right: Map and Bar Chart
 left, right = st.columns([1,3], gap="large")
 
+# Left column: Filters and Chatbot
 with left:
+    # Sets the subheader for the filters section
     st.subheader("🔎 Filters")
+    # CRI slider filter
     min_c, max_c = st.slider(
         "CRI range",
         float(cri_df["Community Resilience Index (CRI)"].min()),
@@ -206,54 +230,111 @@ with left:
           float(cri_df["Community Resilience Index (CRI)"].max()),
         )
     )
+    # County and radius filters
     county = st.selectbox("County", ["All"]+sorted(cri_df["County Name"].unique()))
-    rad    = st.slider("Radius (mi)", 1, 100, 25)
+    radius = st.slider("Radius (mi)", 1, 100, 25)
 
     st.markdown("---")
+    # Chatbot for CRI range queries
     st.subheader("💬 Ask the CRI Bot")
-    q = st.text_input("e.g. Which counties above 0.7?")
+    query = st.text_input("e.g. Which counties above 0.7?")
     if st.button("Run Chat"):
         try:
-            lo, hi = parse_cri_range(q)
-            df_out = filter_cri(lo, hi)
+            low, high = parse_cri_range(query)
+            df_out = cri_range(low, high)
             st.write(df_out[["County Name","Community Resilience Index (CRI)"]])
-        except Exception as err:
-            st.error(err)
+        except Exception as error:
+            st.error(error)
 
+# Right column: Map and Bar Chart
 with right:
-    # filter for map & bar chart
-    df_map = filter_cri(min_c, max_c)
+    # Pick your base: raw CRI vs. cluster
+    map_toggle = st.radio(
+        "Color Map By:",
+        ["Community Resilience Index (CRI)", "Resilience Clusters"],
+        index=0,
+    )
+
+    # If we are using clusters, we need to prepare the DataFrame for the clusters
+    # and show the cluster centers
+    if map_toggle == "Resilience Cluster":
+        centers = pd.DataFrame(
+            kmeans_model.cluster_centers_,
+            columns=[
+                "Socioeconomic Resilience",
+                "Food Resilience",
+                "Healthcare Resilience"
+            ],
+            index=[f"Cluster {i}" for i in range(len(kmeans_model.cluster_centers_))]
+        ).round(4)
+        st.subheader("Resilience Cluster Centers")
+        st.table(centers)
+        
+        base = clustered_df.copy()
+        color_col = "cluster"
+    else:
+        base = cri_df.copy()
+        color_col = "Community Resilience Index (CRI)"
+
+
+    
+    # 1) Prepare the map DataFrame
+    # Filter the base DataFrame based on the CRI range and county selection
+    df_map = base[(base["Community Resilience Index (CRI)"] >= min_c) & (base["Community Resilience Index (CRI)"] <= max_c)].copy()
     if county!="All":
         center = centroids[cri_df.loc[cri_df["County Name"]==county,"fips"].iloc[0]]
         df_map["dist"] = df_map["fips"].map(lambda f: haversine(center, centroids[f]))
-        df_map = df_map[df_map["dist"]<=rad]
+        df_map = df_map[df_map["dist"] <= radius]
 
+    # Warning fip codes are received from the helper function calling the NOAA API
     warning_fips = fetch_noaa_warnings()
-    # flag those rows in your map‐DataFrame
     df_map["warning"] = df_map["fips"].isin(warning_fips)
 
 
-    # when you call px.choropleth, add custom_data=…
-    fig = px.choropleth(
-        df_map,
-        geojson=counties_geojson,
-        locations="fips",
-        featureidkey="properties.GEOID",
-        color="Community Resilience Index (CRI)",
-        color_continuous_scale="Viridis",
-        scope="usa",
-        # we list all five fields, in the exact order we want them in the hover
-        custom_data=[
-            "County Name",
-            "Socioeconomic Resilience",
-            "Food Resilience",
-            "Healthcare Resilience",
-            "Community Resilience Index (CRI)",
-        ],
-        title="CRI by Georgia Counties",
-    )
+    # Build the choropleth map using Plotly Express
 
-    # now override the default hover to use our customdata array:
+    # If the map toggle is resilience cluster
+    if map_toggle == "Resilience Cluster":
+        fig = px.choropleth(
+            df_map,
+            geojson=counties_geojson,
+            locations="fips",
+            featureidkey="properties.GEOID",
+            color="cluster",
+            scope="usa",
+            category_orders={ "cluster": sorted(df_map["cluster"].unique()) },
+            title="Counties by Resilience Cluster",
+            hover_data=[
+                "County Name",
+                "Socioeconomic Resilience",
+                "Food Resilience",
+                "Healthcare Resilience",
+                "cluster"
+            ],
+        )
+        fig.update_traces(marker_line_width=0.5)
+
+    # If the map toggle is Community Resilience Index (CRI)
+    else:
+        fig = px.choropleth(
+            df_map,
+            geojson=counties_geojson,
+            locations="fips",
+            featureidkey="properties.GEOID",
+            color="Community Resilience Index (CRI)",
+            color_continuous_scale="Viridis",
+            scope="usa",
+            title="CRI by Georgia County",
+            hover_data=[
+                "County Name",
+                "Socioeconomic Resilience",
+                "Food Resilience",
+                "Healthcare Resilience",
+                "Community Resilience Index (CRI)",
+            ],
+        )
+
+    # Override the default hover template to include custom data
     fig.update_traces(
         hovertemplate=(
             "<b>%{customdata[0]}</b><br>"
@@ -263,31 +344,38 @@ with right:
             "CRI: %{customdata[4]:.4f}<extra></extra>"
         )
     )
-    # Title alignment
-    fig.update_layout(title_x=0.3)
 
-    line_colors = [
-    "red" if warn else "#444" 
-    for warn in df_map["warning"]
-    ]
+    # To make sure NOAA warnings are shown properly with coloring already going on for CRI and Resilience Clusters,
+    # we need to set the border colors and widths based on the warning status
+    border_colors  = ["red" if w else "#444" for w in df_map["warning"]]
+    border_widths  = [3 if w else 1 for w in df_map["warning"]]
     fig.update_traces(
-        marker_line_color=line_colors,
-        marker_line_width=2
+        marker_line_color=border_colors,
+        marker_line_width=border_widths
     )
 
+
+    # Title alignment for the graph
+    fig.update_layout(title_x=0.3)
+
+
+    # Show the active NOAA warnings in the sidebar with the FIPS codes
     codes = sorted(warning_fips)
     if codes:
         st.sidebar.write("Active alert FIPS codes:", codes)
     else:
         st.sidebar.info("No active NOAA alerts for Georgia right now.")
 
-    fig.update_geos(fitbounds="locations", visible=False,
-                    lonaxis=dict(range=[-85.5,-80.5]),
-                    lataxis=dict(range=[30,35.5]))
-    fig.update_layout(margin={"t":30,"b":0,"l":0,"r":0})
+    # Update the map layout
+    fig.update_geos(
+        fitbounds="locations", visible=False,
+        lonaxis=dict(range=[-85.5, -80.5]),
+        lataxis=dict(range=[30, 35.5])
+    )
+    fig.update_layout(margin={"t": 30, "b": 0, "l": 0, "r": 0}, title_x=0.3)
     st.plotly_chart(fig, use_container_width=True)
 
-    # Bar chart + details
+    # Bar chart + Details
     st.subheader("CRI Distribution")
     st.bar_chart(df_map.set_index("County Name")["Community Resilience Index (CRI)"])
 
