@@ -115,7 +115,7 @@ def fetch_noaa_warnings():
     noaa_url = "https://api.weather.gov/alerts/active?area=GA"
     req = requests.get(noaa_url, timeout=10)
     req.raise_for_status()
-    noaa_data = r.json()
+    noaa_data = req.json()
     warning_fips = set()
     for feat in noaa_data["features"]:
         geocode = feat["properties"].get("geocode",{}) or {}
@@ -159,7 +159,7 @@ with st.sidebar:
     # Let's the user input keywords separated by commas 
     keyword_input = st.sidebar.text_input(
         "Enter keywords (comma-separated)",
-        value=""
+        value="Social inequality"
     )
 
     # Can pull up to 50 articles at a time
@@ -257,7 +257,7 @@ with right:
 
     # If we are using clusters, we need to prepare the DataFrame for the clusters
     # and show the cluster centers
-    if map_toggle == "Resilience Cluster":
+    if map_toggle == "Resilience Clusters":
         centers = pd.DataFrame(
             kmeans_model.cluster_centers_,
             columns=[
@@ -278,7 +278,7 @@ with right:
 
 
     
-    # 1) Prepare the map DataFrame
+    # Prepare the map DataFrame
     # Filter the base DataFrame based on the CRI range and county selection
     df_map = base[(base["Community Resilience Index (CRI)"] >= min_c) & (base["Community Resilience Index (CRI)"] <= max_c)].copy()
     if county!="All":
@@ -294,7 +294,7 @@ with right:
     # Build the choropleth map using Plotly Express
 
     # If the map toggle is resilience cluster
-    if map_toggle == "Resilience Cluster":
+    if map_toggle == "Resilience Clusters":
         fig = px.choropleth(
             df_map,
             geojson=counties_geojson,
@@ -303,7 +303,8 @@ with right:
             color="cluster",
             scope="usa",
             category_orders={ "cluster": sorted(df_map["cluster"].unique()) },
-            title="Counties by Resilience Cluster",
+            color_discrete_sequence = px.colors.qualitative.Plotly,
+            title="Counties by Resilience Clusters",
             hover_data=[
                 "County Name",
                 "Socioeconomic Resilience",
