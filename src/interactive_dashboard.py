@@ -1,6 +1,3 @@
-#
-# ─── ALL IMPORTS ────────────────────────────────────────────────────────────────
-#
 import re
 import os
 import json
@@ -17,16 +14,13 @@ from sklearn.cluster import KMeans
 import numpy as np
 
 
-# Disable Hugging Face progress bars
-os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
-
 # Set Streamlit page config
 st.set_page_config(layout="wide")
 
 #
 # ─── DATA & PATHS ────────────────────────────────────────────────────────────────
 #
-HERE = Path(__file__).resolve().parent
+HERE = Path('.')
 DATA_DIR = HERE / "data"
 CRI_CSV = DATA_DIR / "community_resilience_index.csv"
 GEOJSON = DATA_DIR / "counties.geojson"
