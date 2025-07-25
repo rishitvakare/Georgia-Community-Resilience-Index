@@ -1,8 +1,8 @@
 # Georgia-Community-Resilience-Index
 ## Purpose 
-- Making a community resiliency index score where the goal is to take multiple socioeconomic factors from census pulls, data from different organizational entities, etc. to create a risk indicator for all counties in Georgia
+- Making a community resiliency index score where the goal is to take multiple socioeconomic factors from census pulls, data from different organizational entities, etc. to create a risk indicator for all counties in Georgia. From there, we can implement and integrate powerful features into a data driven, insightful interactive dashboard that can give us more information, so organizations, local officials, etc. can make educated, insightful decisions to help not just the communities in need, but every community.
 
-## Until Checkpoint #3
+## Overall Set-Up
 
 ### Clone the Repository and Set Up the Environment
 - Go to the folder where you want your repository to be cloned
