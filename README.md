@@ -38,11 +38,7 @@ pip install pandas requests
   - Head on over to this website : https://www.ers.usda.gov/data-products/food-access-research-atlas/download-the-data/
   - From there, go to current version and download the zip
   - Save the zip in under the path ```src\data``` (where all the other files are)
-  - Save ```usda_loader.py``` in ```src```
-  - Run this cell below in terminal
-    ```bash
-    python usda_loader.py
-    ```
+  - Run this next cell in the notebook
   - This cell will take ```socioeconomic_full.csv```, and merge it with the file ```Food Access Research Atlas```
   - It will make a CSV file called ```food_access_score.csv``` saved under the data folder
   - The CSV file will show the Food Insecurity Score (FIS) simply the fraction of its census tracts that are classified as both low-income and low-access (LILA). LILA refers to the neighborhods of the county that have to travel further than normal thresholds for high quality, nutritional groceries despite the limited financial conditions.
@@ -50,28 +46,18 @@ pip install pandas requests
 
 ### Pulling the Resilience_Health Score For Each County
 - Since, we are getting the healthcare data from the same ACS platform, we don't need to get another API key for it
-- All we have to do is open up the same terminal again and run the cell below
-``` bash
-python uninsured.py
-```
+- It will be the same API key we used earlier. You can use a different name for it (like I did) for clarity in the .env file
+- Run the next cell in the notebook
 - Now, you should a see a CSV file of the uninsured population under 65 data under the name of ```healthcare_uninsured_counts.csv```
-- Next, we can run the script that we have made ```healthcare_resilience.py```
-- Run the cell below
-```bash
-python healhcare_resilience.py
-```
-- When we run this script, we load in ``healthcare_uninsured_counts.csv``
+- Now, we can run the next cell
+- When we run this cell, we load in ``healthcare_uninsured_counts.csv``
 - We end up getting ```healthcare_resilience.csv```
 - In that CSV file, we can see the normalized scores and the Resilience_Health score
 
 ### Computing the Community Resilience Index (CRI) score
 - Now, that we all the resilience scores for our data, we can go ahead and compute the CRI score.
-- We created a script called ```compute_CRI.py``` to calculate our CRI score
+- Our next cell contains a script to calculate our CRI score
 - This script loads in our relevant CSV files that contain our resilience scores from our socioeconomic aspect, our food availability aspect, and healthcare aspect
-- Run the cell below in terminal
-  ```bash
-  python compute_CRI.py
-  ```
 - As a result, we get an output of ```community_resilience_index.csv``` in the data folder
 - This folder contains all the counties, the state, resilience scores for each county, and the CRI score for the county
 
