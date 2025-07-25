@@ -78,6 +78,10 @@ pip install pandas requests
 - You can also see it online as I have published it as a free, public website or application
 - [Streamlit Interactive Dashboard](https://georgia-community-resilience-index.streamlit.app/)
 
+### References
+- United States Census Bureau. “Explore Census Data.” United States Census Bureau, 2025, data.census.gov/.
+- 
+
 
 ### Current Repo Structure
 ```
