@@ -80,7 +80,11 @@ pip install pandas requests
 
 ### References
 - United States Census Bureau. “Explore Census Data.” United States Census Bureau, 2025, data.census.gov/.
-- 
+- Wikipedia Contributors. “List of Appalachian Regional Commission Counties.” Wikipedia, Wikimedia Foundation, 20 Feb. 2025, en.wikipedia.org/wiki/List_of_Appalachian_Regional_Commission_counties.
+- Atreya, Ajita. “Measuring Community Resilience: The Role of the Community Rating System (CRS).” SSRN Electronic Journal, 2016, papers.ssrn.com/sol3/papers.cfm?abstract_id=2788230, https://doi.org/10.2139/ssrn.2788230. Accessed 15 Oct. 2019.
+- “Social Vulnerability.” Wikipedia, Wikimedia Foundation, 11 July 2019, en.wikipedia.org/wiki/Social_vulnerability.
+- “Food Environment Atlas | Economic Research Service.” Usda.gov, 2025, www.ers.usda.gov/data-products/food-environment-atlas.
+- Du, Shun, et al. “Predicting Economic Resilience: A Machine Learning Approach to Rural Development.” Alexandria Engineering Journal, vol. 121, 27 Feb. 2025, pp. 193–200, https://doi.org/10.1016/j.aej.2025.02.049.
 
 
 ### Current Repo Structure
