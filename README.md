@@ -21,7 +21,7 @@ source venv/bin/activate        # macOS/Linux
 pip install --upgrade pip
 pip install pandas requests
 ```
-### Pulling the Resilience_Socio Score For Each County
+### Creating ```socioeconomic_full.csv```
 - To run ```census-pull.py```, you have to first get your own API key
 - Head over to this website : https://api.census.gov/data/key_signup.html
 - Enter your organization name and email, and you will receive an email with your API key
