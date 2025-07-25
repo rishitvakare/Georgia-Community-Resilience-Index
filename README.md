@@ -83,18 +83,28 @@ pip install pandas requests
 ```
 community-resilience-index/
 │
+├── .DS_Store
+├── README.md
+├── requirements.txt
 ├── src/
+│   ├── .DS_Store
+│   ├── .env
+│   ├── compute_cri.py
+│   ├── DataPreparation.ipynb
+│   ├── interactive_dashboard.py
 │   ├── census-pull.py
-│   ├── sev.py
+│   ├── socioeconomic_sev.py
 │   ├── usda_loader.py
 │   ├── uninsured.py
 │   ├── healthcare_resilience.py
 │   └── data/
+│       ├── 2019 Food Access Research Atlas Data
+│       ├── counties.geojson
+│       ├── community_resilience_index.csv
 │       ├── healthcare_resilience.csv
 │       ├── healthcare_uninsured_counts.csv
 │       ├── food_access_score.csv
-│       ├── healthcare_uninsured_counts.csv
 │       ├── socioeconomic_full.csv
 │       └── socioeconomic_sev.csv
-│
-└── README.md
+
+
