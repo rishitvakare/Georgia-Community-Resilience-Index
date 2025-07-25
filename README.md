@@ -21,21 +21,16 @@ source venv/bin/activate        # macOS/Linux
 pip install --upgrade pip
 pip install pandas requests
 ```
-### Creating ```socioeconomic_full.csv```
-- To run ```census-pull.py```, you have to first get your own API key
+### Creating ```socioeconomic_full.csv``` and ```socioeconomic_sev.csv```
+- We have a Jupyter Notebook now with all the scripts loaded into it for data fetching and pre-processing
+- To run the first, you have to first get your own API key
 - Head over to this website : https://api.census.gov/data/key_signup.html
 - Enter your organization name and email, and you will receive an email with your API key
-- In terminal, export the API key by running the following cell below
-``` bash
-export CENSUS_API_KEY="YOUR_CENSUS_KEY"         # macOS/Linux
-$Env:CENSUS_API_KEY="YOUR_CENSUS_KEY"           # Windows PowerShell
-```
-- Now, run this cell below
-``` bash
-python census-pull.py
-```
+- Create an ```.env``` file with the name of the API KEY like I have provided in my code, and keep the key in that .env file
+- Run the first notebook cell
 - All of the data that you wanted to pull should now be seen in your directory under the name ```socioeconomic_full.csv``` in the path ```src\data```
 - Within this CSV file, you will now see three metrics --> Poverty Rate, Percent of Population with no HS Education, and the Percent of Population that >30% of their income for their housing
+- Run the second cell now
 - Using those metrics, we normalized them via a min-max method and then averaged thosse scores to get a Socioeconomic Vulnerability Score (SEV)
 - Using that SEV score, we can find the resiliency score which is just 1 - SEV.
 
