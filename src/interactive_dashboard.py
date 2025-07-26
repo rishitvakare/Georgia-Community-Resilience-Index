@@ -20,7 +20,7 @@ st.set_page_config(layout="wide")
 #
 # ─── DATA & PATHS ────────────────────────────────────────────────────────────────
 #
-HERE = Path('.')
+HERE = Path(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = HERE / "data"
 CRI_CSV = DATA_DIR / "community_resilience_index.csv"
 GEOJSON = DATA_DIR / "counties.geojson"
